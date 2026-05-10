@@ -90,18 +90,15 @@
                 <Border BorderBrush="{StaticResource LineBrush}" BorderThickness="0,1,0,0" Padding="0,14,0,0" Margin="0,18,0,0">
                     <StackPanel>
                         <DockPanel Height="34">
-                            <TextBlock Text="BOARD" Foreground="{StaticResource MutedBrush}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <TextBlock Text="DEVICE" Foreground="{StaticResource MutedBrush}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
                             <Border DockPanel.Dock="Right" Background="#20382F" CornerRadius="10" Padding="8,3">
                                 <TextBlock x:Name="PlatformIoStatusText" Text="PIO" Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="Bold"/>
                             </Border>
                         </DockPanel>
-                        <TextBlock Text="Target" Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,8,0,6"/>
-                        <ComboBox x:Name="BoardSelector" Height="38" SelectionChanged="BoardSelectorChanged">
-                            <ComboBoxItem Content="Arduino Uno R3" IsSelected="True"/>
-                            <ComboBoxItem Content="ESP32 DevKit v1"/>
-                            <ComboBoxItem Content="Raspberry Pi Pico"/>
-                            <ComboBoxItem Content="STM32 Nucleo F401RE"/>
-                        </ComboBox>
+                        <TextBlock Text="Type" Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,8,0,6"/>
+                        <ComboBox x:Name="DeviceTypeSelector" Height="38" SelectionChanged="DeviceTypeSelectorChanged"/>
+                        <TextBlock Text="Board" Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,10,0,6"/>
+                        <ComboBox x:Name="BoardSelector" Height="38" SelectionChanged="BoardSelectorChanged"/>
                         <UniformGrid Columns="2" Margin="0,10,0,0">
                             <Border Background="#141821" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,4,0">
                                 <StackPanel>
@@ -122,13 +119,13 @@
                 <Border BorderBrush="{StaticResource LineBrush}" BorderThickness="0,1,0,0" Padding="0,14,0,0" Margin="0,18,0,0">
                     <StackPanel>
                         <DockPanel Height="34">
-                            <TextBlock Text="LEARNING PATH" Foreground="{StaticResource MutedBrush}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
-                            <TextBlock Text="2/6" DockPanel.Dock="Right" Foreground="{StaticResource MutedBrush}" FontSize="12" VerticalAlignment="Center"/>
+                            <TextBlock Text="DEVICE TYPES" Foreground="{StaticResource MutedBrush}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="DeviceCountText" Text="0" DockPanel.Dock="Right" Foreground="{StaticResource MutedBrush}" FontSize="12" VerticalAlignment="Center"/>
                         </DockPanel>
-                        <TextBlock Text="Done  GPIO basics" Foreground="{StaticResource AccentBrush}" Margin="0,6,0,0"/>
-                        <TextBlock Text="Now   Blink without delay" Foreground="{StaticResource TextBrush}" FontWeight="Bold" Margin="0,8,0,0"/>
-                        <TextBlock Text="Next  PWM and analog reads" Foreground="{StaticResource MutedBrush}" Margin="0,8,0,0"/>
-                        <TextBlock Text="Next  Serial debugging" Foreground="{StaticResource MutedBrush}" Margin="0,8,0,0"/>
+                        <TextBlock Text="ESP32 / ESP8266" Foreground="{StaticResource AccentBrush}" Margin="0,6,0,0"/>
+                        <TextBlock Text="Arduino AVR / SAMD" Foreground="{StaticResource TextBrush}" FontWeight="Bold" Margin="0,8,0,0"/>
+                        <TextBlock Text="RP2040 / Pico" Foreground="{StaticResource MutedBrush}" Margin="0,8,0,0"/>
+                        <TextBlock Text="STM32 / Teensy / nRF52" Foreground="{StaticResource MutedBrush}" Margin="0,8,0,0"/>
                     </StackPanel>
                 </Border>
             </StackPanel>
@@ -192,13 +189,13 @@
                         <Border Background="#181D27" BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="8" Padding="14">
                             <StackPanel>
                                 <DockPanel>
-                                    <TextBlock Text="Current Lesson" Foreground="{StaticResource MutedBrush}" FontSize="12"/>
-                                    <TextBlock Text="Blink without delay" DockPanel.Dock="Right" Foreground="{StaticResource TextBrush}" FontWeight="Bold"/>
+                                    <TextBlock Text="Selected Device" Foreground="{StaticResource MutedBrush}" FontSize="12"/>
+                                    <TextBlock x:Name="DeviceFamilyText" Text="Arduino AVR" DockPanel.Dock="Right" Foreground="{StaticResource TextBrush}" FontWeight="Bold"/>
                                 </DockPanel>
-                                <TextBlock Text="Use millis() so your board can blink an LED while still listening for inputs." TextWrapping="Wrap" Foreground="#C5CEDA" LineHeight="21" Margin="0,12,0,14"/>
-                                <CheckBox Content="Wire LED to pin 13" IsChecked="True" Foreground="{StaticResource TextBrush}" Margin="0,0,0,8"/>
-                                <CheckBox Content="Predict the blink interval" Foreground="{StaticResource TextBrush}" Margin="0,0,0,8"/>
-                                <CheckBox Content="Upload and observe" Foreground="{StaticResource TextBrush}"/>
+                                <TextBlock x:Name="DeviceDescriptionText" Text="Arduino Uno R3 using the atmelavr platform." TextWrapping="Wrap" Foreground="#C5CEDA" LineHeight="21" Margin="0,12,0,14"/>
+                                <DockPanel Margin="0,8"><TextBlock Text="Platform" Foreground="{StaticResource MutedBrush}"/><TextBlock x:Name="PlatformText" Text="atmelavr" DockPanel.Dock="Right" Foreground="{StaticResource TextBrush}" FontWeight="Bold"/></DockPanel>
+                                <DockPanel Margin="0,8"><TextBlock Text="Board ID" Foreground="{StaticResource MutedBrush}"/><TextBlock x:Name="BoardIdText" Text="uno" DockPanel.Dock="Right" Foreground="{StaticResource TextBrush}" FontWeight="Bold"/></DockPanel>
+                                <DockPanel Margin="0,8"><TextBlock Text="Framework" Foreground="{StaticResource MutedBrush}"/><TextBlock x:Name="BoardFrameworkText" Text="arduino" DockPanel.Dock="Right" Foreground="{StaticResource TextBrush}" FontWeight="Bold"/></DockPanel>
                             </StackPanel>
                         </Border>
 

@@ -1,4 +1,4 @@
-# Learning notes
+# Project notes
 
 - millis() lets the loop keep running.
 - delay() blocks every other task.
