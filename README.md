@@ -8,7 +8,7 @@ Circuit Forge is a Windows desktop app for learning embedded development with a 
 
 - A starter Arduino/PlatformIO project
 - A code editor panel for `src/main.cpp`, `platformio.ini`, and notes
-- Device-family board selection for ESP32, ESP8266, Arduino AVR/SAMD, RP2040, STM32, Teensy, nRF52, Linux SBC, and specialty boards
+- Device-family board selection backed by `pio boards --json-output`, with a small built-in fallback list while the full PlatformIO catalog loads
 - Real PlatformIO-backed Verify, Upload, and Serial buttons
 - A release icon for the app and executable
 

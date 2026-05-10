@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -7,29 +8,8 @@ namespace CircuitForge;
 
 public partial class MainWindow : Window
 {
-    private sealed record BoardProfile(
-        string Family,
-        string Name,
-        string Platform,
-        string BoardId,
-        string Framework,
-        string Clock,
-        string Flash,
-        string Description);
-
-    private readonly string _projectPath = Path.Combine(
-        AppContext.BaseDirectory,
-        "Projects",
-        "StarterKit");
-
-    private readonly string? _pioPath = FindPlatformIo();
-
-    private string _activeFile = "main.cpp";
-
-    private readonly Dictionary<string, string> _files = new()
-    {
-        ["main.cpp"] = """
-        // Lesson 2: blink without delay
+    private const string DefaultMainSource = """
+        // Starter sketch: blink without delay
         #include <Arduino.h>
 
         const int ledPin = 13;
@@ -52,7 +32,38 @@ public partial class MainWindow : Window
             Serial.println(ledState ? "LED on" : "LED off");
           }
         }
-        """,
+        """;
+
+    private const string DefaultNotes = """
+        # Project notes
+
+        - millis() lets the loop keep running.
+        - delay() blocks every other task.
+        - Serial output is the fastest first debugging tool.
+        """;
+
+    private sealed record BoardProfile(
+        string Family,
+        string Name,
+        string Platform,
+        string BoardId,
+        string Framework,
+        string Clock,
+        string Flash,
+        string Description);
+
+    private readonly string _projectPath = Path.Combine(
+        AppContext.BaseDirectory,
+        "Projects",
+        "StarterKit");
+
+    private readonly string? _pioPath = FindPlatformIo();
+
+    private string _activeFile = "main.cpp";
+
+    private readonly Dictionary<string, string> _files = new()
+    {
+        ["main.cpp"] = DefaultMainSource,
         ["platformio.ini"] = """
         [env:uno]
         platform = atmelavr
@@ -60,13 +71,7 @@ public partial class MainWindow : Window
         framework = arduino
         monitor_speed = 115200
         """,
-        ["notes.md"] = """
-        # Learning notes
-
-        - millis() lets the loop keep running.
-        - delay() blocks every other task.
-        - Serial output is the fastest first debugging tool.
-        """
+        ["notes.md"] = DefaultNotes
     };
 
     private readonly List<BoardProfile> _boards =
@@ -129,6 +134,7 @@ public partial class MainWindow : Window
         ProjectPathText.Text = _projectPath;
         PlatformIoStatusText.Text = _pioPath is not null ? "PIO" : "NO PIO";
         OpenFile("main.cpp");
+        _ = LoadPlatformIoBoardCatalogAsync();
     }
 
     private void OpenMainFile(object sender, RoutedEventArgs e) => OpenFile("main.cpp");
@@ -136,6 +142,84 @@ public partial class MainWindow : Window
     private void OpenConfigFile(object sender, RoutedEventArgs e) => OpenFile("platformio.ini");
 
     private void OpenNotesFile(object sender, RoutedEventArgs e) => OpenFile("notes.md");
+
+    private void WorkspaceClicked(object sender, RoutedEventArgs e)
+    {
+        OpenFile("main.cpp");
+        ShowConsole("Workspace", [
+            $"Project: {_projectPath}",
+            $"Active file: {ActiveFileText.Text}",
+            "Use Verify to build, Upload to flash a connected board, or Serial to open the monitor."
+        ]);
+    }
+
+    private void BoardsClicked(object sender, RoutedEventArgs e)
+    {
+        ShowConsole("Boards", _boards
+            .GroupBy(board => board.Family)
+            .Select(group => $"{group.Key}: {group.Count()} boards")
+            .OrderBy(line => line)
+            .ToArray());
+    }
+
+    private void HelpClicked(object sender, RoutedEventArgs e)
+    {
+        ShowConsole("Help", [
+            "Circuit Forge is a native PlatformIO front end.",
+            "1. Pick a device type and board.",
+            "2. Edit src/main.cpp or platformio.ini.",
+            "3. Use Verify, Upload, and Serial from the top bar.",
+            "The + button resets the starter sketch files."
+        ]);
+    }
+
+    private void ProblemsClicked(object sender, RoutedEventArgs e)
+    {
+        ShowConsole("Problems", [
+            "No diagnostics yet.",
+            "Run Verify to ask PlatformIO to compile the current project."
+        ]);
+    }
+
+    private void OutputClicked(object sender, RoutedEventArgs e)
+    {
+        ShowConsole("Output", [
+            $"PlatformIO: {(_pioPath ?? "not found")}",
+            $"Project: {_projectPath}",
+            $"Selected board: {GetSelectedBoard().Name}",
+            $"Loaded boards: {_boards.Count}"
+        ]);
+    }
+
+    private void SettingsClicked(object sender, RoutedEventArgs e)
+    {
+        ShowConsole("Settings", [
+            $"PlatformIO executable: {(_pioPath ?? "not found")}",
+            $"Project folder: {_projectPath}",
+            "Upload port: auto",
+            "Serial baud: 115200",
+            "Project files are saved automatically when switching files or running commands."
+        ]);
+    }
+
+    private void NewSketchClicked(object sender, RoutedEventArgs e)
+    {
+        _files["main.cpp"] = DefaultMainSource;
+        _files["platformio.ini"] = BuildPlatformIoIni(GetSelectedBoard());
+        _files["notes.md"] = DefaultNotes;
+
+        Directory.CreateDirectory(Path.Combine(_projectPath, "src"));
+        File.WriteAllText(Path.Combine(_projectPath, "src", "main.cpp"), _files["main.cpp"]);
+        File.WriteAllText(Path.Combine(_projectPath, "platformio.ini"), _files["platformio.ini"]);
+        File.WriteAllText(Path.Combine(_projectPath, "learning-notes.md"), _files["notes.md"]);
+        EditorText.Text = _files[_activeFile];
+        ActiveFileText.Text = _activeFile == "main.cpp" ? "src/main.cpp" : _activeFile;
+        LineNumbersText.Text = string.Join(Environment.NewLine, Enumerable.Range(1, _files[_activeFile].Split('\n').Length));
+        ShowConsole("New Sketch", [
+            "Starter sketch files were reset.",
+            "src/main.cpp, platformio.ini, and learning-notes.md were written to the project folder."
+        ]);
+    }
 
     private void OpenFile(string fileName)
     {
@@ -156,20 +240,14 @@ public partial class MainWindow : Window
 
         BoardSelector.ItemsSource = _boards
             .Where(board => board.Family == family)
-            .Select(board => board.Name)
+            .OrderBy(board => board.Name)
             .ToList();
         BoardSelector.SelectedIndex = 0;
     }
 
     private void BoardSelectorChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (ClockText is null || FlashText is null || BoardSelector.SelectedItem is not string boardName)
-        {
-            return;
-        }
-
-        var board = _boards.FirstOrDefault(candidate => candidate.Name == boardName);
-        if (board is null)
+        if (ClockText is null || FlashText is null || BoardSelector.SelectedItem is not BoardProfile board)
         {
             return;
         }
@@ -181,13 +259,7 @@ public partial class MainWindow : Window
         PlatformText.Text = board.Platform;
         BoardIdText.Text = board.BoardId;
         BoardFrameworkText.Text = board.Framework;
-        _files["platformio.ini"] = $"""
-        [env:{board.BoardId}]
-        platform = {board.Platform}
-        board = {board.BoardId}
-        framework = {board.Framework}
-        monitor_speed = 115200
-        """;
+        _files["platformio.ini"] = BuildPlatformIoIni(board);
 
         if (_activeFile == "platformio.ini")
         {
@@ -197,12 +269,227 @@ public partial class MainWindow : Window
 
     private void PopulateDeviceTypes()
     {
-        DeviceTypeSelector.ItemsSource = _boards
+        var deviceTypeSelector = DeviceTypeSelector;
+        var deviceCountText = DeviceCountText;
+        if (deviceTypeSelector is null || deviceCountText is null)
+        {
+            return;
+        }
+
+        var selectedFamily = deviceTypeSelector.SelectedItem as string ?? "Arduino AVR";
+        if (!_boards.Any(board => board.Family == selectedFamily))
+        {
+            selectedFamily = _boards.Select(board => board.Family).OrderBy(family => family).FirstOrDefault() ?? "";
+        }
+
+        deviceTypeSelector.ItemsSource = _boards
             .Select(board => board.Family)
             .Distinct()
+            .OrderBy(family => family)
             .ToList();
-        DeviceCountText.Text = _boards.Count.ToString();
-        DeviceTypeSelector.SelectedItem = "Arduino AVR";
+        deviceCountText.Text = _boards.Count.ToString();
+        deviceTypeSelector.SelectedItem = selectedFamily;
+    }
+
+    private BoardProfile GetSelectedBoard()
+    {
+        return BoardSelector?.SelectedItem as BoardProfile ?? _boards.First(board => board.BoardId == "uno");
+    }
+
+    private static string BuildPlatformIoIni(BoardProfile board) =>
+        $"""
+        [env:{board.BoardId}]
+        platform = {board.Platform}
+        board = {board.BoardId}
+        framework = {board.Framework}
+        monitor_speed = 115200
+        """;
+
+    private void ShowConsole(string title, IEnumerable<string> lines)
+    {
+        ConsoleText.Text = $"[{title}]{Environment.NewLine}{string.Join(Environment.NewLine, lines)}";
+        ConsoleText.ScrollToEnd();
+    }
+
+    private async Task LoadPlatformIoBoardCatalogAsync()
+    {
+        if (_pioPath is null)
+        {
+            return;
+        }
+
+        Dispatcher.Invoke(() => AppendConsoleLine("Loading full PlatformIO board catalog..."));
+
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = _pioPath,
+            Arguments = "boards --json-output",
+            WorkingDirectory = _projectPath,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+
+        try
+        {
+            using var process = Process.Start(startInfo);
+            if (process is null)
+            {
+                return;
+            }
+
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+
+            var output = await outputTask;
+            var error = await errorTask;
+
+            if (process.ExitCode != 0)
+            {
+                Dispatcher.Invoke(() => AppendConsoleLine($"PlatformIO board catalog failed: {error.Trim()}"));
+                return;
+            }
+
+            var loadedBoards = ParsePlatformIoBoards(output);
+            if (loadedBoards.Count == 0)
+            {
+                Dispatcher.Invoke(() => AppendConsoleLine("PlatformIO returned no boards; keeping the built-in fallback catalog."));
+                return;
+            }
+
+            Dispatcher.Invoke(() =>
+            {
+                var selectedBoardId = GetSelectedBoard().BoardId;
+                _boards.Clear();
+                _boards.AddRange(loadedBoards);
+                PopulateDeviceTypes();
+
+                var selectedBoard = _boards.FirstOrDefault(board => board.BoardId == selectedBoardId) ?? _boards.FirstOrDefault();
+                if (selectedBoard is not null)
+                {
+                    DeviceTypeSelector.SelectedItem = selectedBoard.Family;
+                    BoardSelector.SelectedItem = selectedBoard;
+                }
+
+                ShowConsole("Boards", [
+                    $"Loaded {_boards.Count} boards from PlatformIO.",
+                    "The device type and board dropdowns now use the full PlatformIO catalog reported by this installation."
+                ]);
+            });
+        }
+        catch (Exception ex)
+        {
+            Dispatcher.Invoke(() => AppendConsoleLine($"PlatformIO board catalog failed: {ex.Message}"));
+        }
+    }
+
+    private static List<BoardProfile> ParsePlatformIoBoards(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+        var boards = new List<BoardProfile>();
+
+        foreach (var element in document.RootElement.EnumerateArray())
+        {
+            var id = GetString(element, "id");
+            var name = GetString(element, "name");
+            var platform = GetString(element, "platform");
+            if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(platform))
+            {
+                continue;
+            }
+
+            var frameworks = GetStringArray(element, "frameworks");
+            var framework = frameworks.Contains("arduino") ? "arduino" : frameworks.FirstOrDefault() ?? "arduino";
+            var vendor = GetString(element, "vendor");
+            var mcu = GetString(element, "mcu");
+            var clock = FormatFrequency(GetLong(element, "fcpu"));
+            var flash = FormatBytes(GetLong(element, "rom"));
+            var family = ClassifyFamily(platform, name, mcu, vendor);
+            var descriptionParts = new[] { vendor, mcu, $"{platform} platform" }
+                .Where(part => !string.IsNullOrWhiteSpace(part));
+
+            boards.Add(new BoardProfile(
+                family,
+                name,
+                platform,
+                id,
+                framework,
+                clock,
+                flash,
+                string.Join(" · ", descriptionParts)));
+        }
+
+        return boards
+            .GroupBy(board => board.BoardId)
+            .Select(group => group.First())
+            .OrderBy(board => board.Family)
+            .ThenBy(board => board.Name)
+            .ToList();
+    }
+
+    private static string ClassifyFamily(string platform, string name, string mcu, string vendor)
+    {
+        var haystack = $"{platform} {name} {mcu} {vendor}".ToLowerInvariant();
+
+        if (haystack.Contains("esp32") || platform == "espressif32") return "ESP32";
+        if (haystack.Contains("esp8266") || platform == "espressif8266") return "ESP8266";
+        if (haystack.Contains("rp2040") || haystack.Contains("pico") || platform == "raspberrypi") return "RP2040 / Pico";
+        if (haystack.Contains("stm32") || platform == "ststm32") return "STM32";
+        if (platform == "teensy") return "Teensy";
+        if (platform == "nordicnrf52" || haystack.Contains("nrf52") || haystack.Contains("micro:bit")) return "nRF52 / Bluetooth";
+        if (platform == "atmelsam") return "Arduino SAMD / ARM";
+        if (platform == "atmelavr" || haystack.Contains("atmega") || haystack.Contains("attiny")) return "Arduino AVR / 8-bit";
+        if (platform.StartsWith("linux", StringComparison.OrdinalIgnoreCase)) return "Linux SBC";
+        if (haystack.Contains("risc-v") || haystack.Contains("riscv") || platform == "sifive") return "RISC-V";
+
+        return platform;
+    }
+
+    private static string GetString(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
+            ? property.GetString() ?? ""
+            : "";
+    }
+
+    private static List<string> GetStringArray(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var property) || property.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+
+        return property
+            .EnumerateArray()
+            .Where(item => item.ValueKind == JsonValueKind.String)
+            .Select(item => item.GetString() ?? "")
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .ToList();
+    }
+
+    private static long GetLong(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property) && property.TryGetInt64(out var value)
+            ? value
+            : 0;
+    }
+
+    private static string FormatFrequency(long hz)
+    {
+        if (hz <= 0) return "Unknown";
+        if (hz >= 1_000_000) return $"{hz / 1_000_000d:0.#} MHz";
+        if (hz >= 1_000) return $"{hz / 1_000d:0.#} kHz";
+        return $"{hz} Hz";
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes <= 0) return "Unknown";
+        if (bytes >= 1_048_576) return $"{bytes / 1_048_576d:0.#} MB";
+        if (bytes >= 1024) return $"{bytes / 1024d:0.#} KB";
+        return $"{bytes} B";
     }
 
     private async void VerifyClicked(object sender, RoutedEventArgs e)
