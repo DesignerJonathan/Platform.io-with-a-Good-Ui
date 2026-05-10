@@ -238,10 +238,12 @@ public partial class MainWindow : Window
             return;
         }
 
-        BoardSelector.ItemsSource = _boards
+        var boards = _boards
             .Where(board => board.Family == family)
             .OrderBy(board => board.Name)
             .ToList();
+
+        BoardSelector.ItemsSource = boards;
         BoardSelector.SelectedIndex = 0;
     }
 
@@ -365,6 +367,11 @@ public partial class MainWindow : Window
                 _boards.Clear();
                 _boards.AddRange(loadedBoards);
                 PopulateDeviceTypes();
+                if (CatalogStatusText is not null)
+                {
+                    CatalogStatusText.Text = "full";
+                    CatalogStatusText.Foreground = System.Windows.Media.Brushes.LightGreen;
+                }
 
                 var selectedBoard = _boards.FirstOrDefault(board => board.BoardId == selectedBoardId) ?? _boards.FirstOrDefault();
                 if (selectedBoard is not null)
@@ -375,7 +382,7 @@ public partial class MainWindow : Window
 
                 ShowConsole("Boards", [
                     $"Loaded {_boards.Count} boards from PlatformIO.",
-                    "The device type and board dropdowns now use the full PlatformIO catalog reported by this installation."
+                    "The searchable board browser now uses the full PlatformIO catalog reported by this installation."
                 ]);
             });
         }
