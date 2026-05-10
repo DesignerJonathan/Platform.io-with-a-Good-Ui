@@ -1,0 +1,31 @@
+# Build output
+bin/
+obj/
+Release/
+
+# Local .NET CLI state used by this workspace
+.dotnet-home/
+
+# Visual Studio / Rider / VS Code local state
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# PlatformIO generated files
+.pio/
+**/.pio/
+.clang_complete
+.gcc-flags.json
+
+# Logs and temp files
+*.log
+*.tmp
+*.bak
+
+# OS files
+Thumbs.db
+Desktop.ini
